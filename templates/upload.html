@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Document</title>
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.1/css/bootstrap.min.css">
+</head>
+
+<body>
+    <div class="card text-center mt-5 shadow-lg p-3 bg-white rounded" style="width: 36rem;margin: auto;text-transform: uppercase;">
+        <h4 class="card-title mb-0">Detecting Blurred Photo</h4>
+        <div class="card-body">
+            <div>
+                {% if images %}
+                {% for image in images %}
+                <div class="alert alert-dark mb-0 mt-4">
+                    {{ image[0][0] }}
+                    <br>
+                    Sharpness Value: {{ image[0][1] }}
+                </div>
+                <img src="{{image[1]}}" class="mt-0">
+                {% endfor %}
+                {% endif %}
+            </div>
+        </div>
+        <form class="validated" method="post" action="/" enctype="multipart/form-data">
+            <div class="custom-file mb-3">
+                <input type="file" name="file[]" class="custom-file-input" id="document" multiple required>
+                <label class="custom-file-label" for="document">Choose Photo...</label>
+                <div class="invalid-feedback">Example invalid custom file feedback</div>
+            </div>
+            <button type="submit" class="btn btn-block btn-danger">
+                EXTRACT
+            </button>
+        </form>
+    </div>
+    <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/popper.js@1.16.1/dist/umd/popper.min.js"></script>
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.1/js/bootstrap.min.js"></script>
+</body>
+
+</html>
