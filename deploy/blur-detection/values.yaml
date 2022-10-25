@@ -23,7 +23,7 @@ imagePullSecrets:
   - name: ghcr-pat-r
 
 nameOverride: ""
-fullnameOverride: ""
+fullnameOverride: "bluredection"
 
 serviceAccount:
   # Specifies whether a service account should be created

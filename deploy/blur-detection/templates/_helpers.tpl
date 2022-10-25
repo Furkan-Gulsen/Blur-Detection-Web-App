@@ -47,7 +47,7 @@ Selector labels
 */}}
 {{- define "blur-detection.selectorLabels" -}}
 app.kubernetes.io/name: {{ include "blur-detection.name" . }}
-app.kubernetes.io/instance: {{ .Release.Name }}
+app.kubernetes.io/instance: "bluredector"
 {{- end }}
 
 {{/*
