@@ -24,6 +24,7 @@ build_image:
     - docker push $IMAGE_NAME:$IMAGE_TAG
 
 deploy:
+  stage: deploy
   image:
     name: bitnami/kubectl:latest
     entrypoint: ['']
