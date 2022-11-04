@@ -48,4 +48,4 @@ On could simply use pod's IP or create a service and use it to test the app. But
 3. **[optional] Use Gitlab’s CI/CD to build and deploy the application
 on the k8s cluster (also gitlab.com is acceptable).**
 
-First runner and `.gitlab-ci.yaml` was added to the project. `.gitlab-ci.yaml` includes trivial/testing stages.
+First runner and `.gitlab-ci.yaml` was added to the project. `.gitlab-ci.yaml` includes trivial/testing stages. I also added my local cluster as an agent to gitlab cicd. tHe deploy stage does not actually work though!
