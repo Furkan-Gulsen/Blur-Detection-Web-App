@@ -22,3 +22,12 @@ build_image:
   script:
     - docker build --pull -t $IMAGE_NAME:$IMAGE_TAG .
     - docker push $IMAGE_NAME:$IMAGE_TAG
+
+image:
+  stage: deploy
+  name: bitnami/kubectl:latest
+  entrypoint: ['']
+script:
+  - kubectl config get-contexts
+  - kubectl config use-context UZziell/blur-detection-web-app:local
+  - kubectl apply -f deploy/secrets.yaml
