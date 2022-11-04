@@ -1,6 +1,5 @@
 # Documentation
 
-
 First I googled `simple web app github python` and after skipping those that were dockerized already, I found [Blur-Detection-Web-App](https://github.com/Furkan-Gulsen/Blur-Detection-Web-App) for the assignment 
 
  **microk8s** (Kubernetes for workstations and appliances from canonical) was used to set up the k8s cluster.
