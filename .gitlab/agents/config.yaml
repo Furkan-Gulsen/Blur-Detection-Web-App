@@ -1,0 +1,4 @@
+ci_access:
+  # This agent is accessible from CI jobs in projects in these groups
+  groups:
+  - id: UZziell/blur-detection-web-app
