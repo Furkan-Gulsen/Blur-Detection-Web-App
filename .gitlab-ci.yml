@@ -16,12 +16,13 @@ docker-build:
   stage: build
   image: docker:20.10.21
   variables:
-    DOCKER_HOST: tcp://localhost:2375
+    DOCKER_HOST: tcp://docker:2375
     DOCKER_TLS_CERTDIR: ""
 
   services:
     - name: docker:20.10.21-dind
       command: ["--tls=false"]
+      alias: docker
   before_script:
     - echo $CI_REGISTRY_PASSWORD | docker login -u $CI_REGISTRY_USER --password-stdin $CI_REGISTRY
   script:
