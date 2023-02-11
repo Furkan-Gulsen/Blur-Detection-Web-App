@@ -35,7 +35,7 @@ docker-build:
       exists:
         - Dockerfile
 
-container_scanning:
+container-scanning:
   stage: check
   needs:
     - "docker-build"
@@ -82,5 +82,7 @@ container_scanning:
 
 deploy:
   stage: deploy
+  needs:
+    - container-scanning
   script:
     - echo "Deploying to k8s $CI_COMMIT_BRANCH"
