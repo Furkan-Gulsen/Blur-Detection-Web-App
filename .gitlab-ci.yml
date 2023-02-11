@@ -1,6 +1,6 @@
 variables:
   #IMAGE: "${CI_REGISTRY}/${CI_REGISTRY_USER}/$CI_PROJECT_NAME"
-  IMAGE_TAG: "CI_REGISTRY_IMAGE:$CI_COMMIT_REF_SLUG"
+  IMAGE_TAG: "$CI_REGISTRY_IMAGE:1.0.0-${CI_PIPELINE_IID}"
   CS_ANALYZER_IMAGE: registry.gitlab.com/security-products/container-scanning/trivy:5
 
 stages:
