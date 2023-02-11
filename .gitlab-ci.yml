@@ -16,18 +16,16 @@ docker-build:
   stage: build
   image: docker:20.10.21
   variables:
-    DOCKER_HOST: tcp://docker:2375
-    DOCKER_TLS_CERTDIR: ""
+    DOCKER_TLS_CERTDIR: "/certs"
 
   services:
-    - name: docker:20.10.21-dind
-      command: ["--tls=false"]
-      alias: docker
+    - docker:20.10.21-dind
   before_script:
     - echo $CI_REGISTRY_PASSWORD | docker login -u $CI_REGISTRY_USER --password-stdin $CI_REGISTRY
   script:
     - docker build --pull -t $IMAGE_TAG .
     - docker push $IMAGE_TAG
+    - sleep 1000
 
   rules:
     - if: $CI_COMMIT_BRANCH
