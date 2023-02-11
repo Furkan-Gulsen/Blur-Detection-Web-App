@@ -17,7 +17,7 @@ check-requirementes-file:
 docker-build:
   stage: build
   needs:
-    - "check-requirementes-file"
+    - check-requirementes-file
   image: docker:20.10.21
   variables:
     DOCKER_TLS_CERTDIR: "/certs"
@@ -36,9 +36,9 @@ docker-build:
         - Dockerfile
 
 container-scanning:
-  stage: check
+  stage: build
   needs:
-    - "docker-build"
+    - docker-build
   image: "$CS_ANALYZER_IMAGE$CS_IMAGE_SUFFIX"
   variables:
     # To provide a `vulnerability-allowlist.yml` file, override the GIT_STRATEGY variable in your
