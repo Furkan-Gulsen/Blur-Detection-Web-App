@@ -73,13 +73,10 @@ container-scanning:
       when: never
 
     # Add the job to branch pipelines.
-    - if: $CI_COMMIT_BRANCH &&
-        $CI_GITLAB_FIPS_MODE == "true" &&
-        $CS_ANALYZER_IMAGE !~ /-(fips|ubi)\z/
-      variables:
-        CS_IMAGE_SUFFIX: -fips
+    - if: $CI_COMMIT_BRANCH == "master"
 
 deploy:
   stage: deploy
   script:
     - echo "Deploying to k8s $CI_COMMIT_BRANCH"
+  when: manual
