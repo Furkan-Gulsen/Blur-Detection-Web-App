@@ -6,7 +6,6 @@ variables:
 stages:
   - test
   - build
-  - check
   - deploy
 
 check-requirementes-file:
@@ -82,7 +81,5 @@ container-scanning:
 
 deploy:
   stage: deploy
-  needs:
-    - container-scanning
   script:
     - echo "Deploying to k8s $CI_COMMIT_BRANCH"
