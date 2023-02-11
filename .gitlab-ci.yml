@@ -1,18 +1,18 @@
 variables:
-  IMAGE_NAME: ghcr.io/uzziell/blurrr
-  IMAGE_TAG: "1.0.0-${CI_PIPELINE_IID}"
+  IMAGE: "${CI_REGISTRY}/${CI_REGISTRY_USER}/blurrr"
+  IMAGE_TAG: "${IMAGE}:1.0.0-${CI_PIPELINE_IID}"
 
 stages:
   - test
   - build
   - deploy
 
-run_tests:
+check-requirementes-file:
   stage: test
   script:
     - test -s ./requirements.txt
 
-build_image:
+docker-build:
   stage: build
   image: docker:20.10.21
   services:
@@ -20,15 +20,10 @@ build_image:
   before_script:
     - echo $CI_REGISTRY_PASSWORD | docker login -u $CI_REGISTRY_USER --password-stdin $CI_REGISTRY
   script:
-    - docker build --pull -t $IMAGE_NAME:$IMAGE_TAG .
-    - docker push $IMAGE_NAME:$IMAGE_TAG
+    - docker build --pull -t $IMAGE_TAG .
+    - docker push $IMAGE_TAG
 
 deploy:
   stage: deploy
-  image:
-    name: bitnami/kubectl:latest
-    entrypoint: ['']
   script:
-    - kubectl config get-contexts
-    - kubectl config use-context UZziell/blur-detection-web-app:local
-    - kubectl apply -f deploy/secrets.yaml
+    - echo "Deploying to k8s $CI_COMMIT_BRANCH"
