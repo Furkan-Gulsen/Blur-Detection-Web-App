@@ -1,5 +1,5 @@
 variables:
-  IMAGE: "${CI_REGISTRY}/${CI_REGISTRY_USER}/blurrr"
+  IMAGE: "${CI_REGISTRY}/${CI_REGISTRY_USER}/blur-detection-web-app"
   IMAGE_TAG: "${IMAGE}:1.0.0-${CI_PIPELINE_IID}"
 
 stages:
@@ -16,7 +16,8 @@ docker-build:
   stage: build
   image: docker:20.10.21
   services:
-    - docker:20.10.21-dind
+    - name: docker:20.10.21-dind
+      entrypoint: ["dockerd-entrypoint.sh", "--tls=false"]
   before_script:
     - echo $CI_REGISTRY_PASSWORD | docker login -u $CI_REGISTRY_USER --password-stdin $CI_REGISTRY
   script:
