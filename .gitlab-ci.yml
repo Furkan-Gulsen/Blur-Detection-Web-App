@@ -3,10 +3,10 @@ variables:
   IMAGE_TAG: "${IMAGE}:1.0.0-${CI_PIPELINE_IID}"
   CS_ANALYZER_IMAGE: registry.gitlab.com/security-products/container-scanning/trivy:5
 
-
 stages:
   - test
   - build
+  - check
   - deploy
 
 check-requirementes-file:
@@ -17,7 +17,7 @@ check-requirementes-file:
 docker-build:
   stage: build
   needs:
-    - check-requirementes-file
+    - "check-requirementes-file"
   image: docker:20.10.21
   variables:
     DOCKER_TLS_CERTDIR: "/certs"
@@ -35,11 +35,10 @@ docker-build:
       exists:
         - Dockerfile
 
-
 container_scanning:
-  stage: test
+  stage: check
   needs:
-    - docker-build
+    - "docker-build"
   image: "$CS_ANALYZER_IMAGE$CS_IMAGE_SUFFIX"
   variables:
     # To provide a `vulnerability-allowlist.yml` file, override the GIT_STRATEGY variable in your
@@ -53,7 +52,8 @@ container_scanning:
     reports:
       container_scanning: gl-container-scanning-report.json
       dependency_scanning: gl-dependency-scanning-report.json
-    paths: [gl-container-scanning-report.json, gl-dependency-scanning-report.json]
+    paths:
+      [gl-container-scanning-report.json, gl-dependency-scanning-report.json]
   dependencies: []
   script:
     - gtcs scan
@@ -63,12 +63,11 @@ container_scanning:
 
     # Add the job to merge request pipelines if there's an open merge request.
     - if: $CI_PIPELINE_SOURCE == "merge_request_event" &&
-          $CI_GITLAB_FIPS_MODE == "true" &&
-          $CS_ANALYZER_IMAGE !~ /-(fips|ubi)\z/
+        $CI_GITLAB_FIPS_MODE == "true" &&
+        $CS_ANALYZER_IMAGE !~ /-(fips|ubi)\z/
       variables:
         CS_IMAGE_SUFFIX: -fips
     - if: $CI_PIPELINE_SOURCE == "merge_request_event"
-
 
     # Don't add it to a *branch* pipeline if it's already in a merge request pipeline.
     - if: $CI_OPEN_MERGE_REQUESTS
@@ -76,11 +75,10 @@ container_scanning:
 
     # Add the job to branch pipelines.
     - if: $CI_COMMIT_BRANCH &&
-          $CI_GITLAB_FIPS_MODE == "true" &&
-          $CS_ANALYZER_IMAGE !~ /-(fips|ubi)\z/
+        $CI_GITLAB_FIPS_MODE == "true" &&
+        $CS_ANALYZER_IMAGE !~ /-(fips|ubi)\z/
       variables:
         CS_IMAGE_SUFFIX: -fips
-
 
 deploy:
   stage: deploy
