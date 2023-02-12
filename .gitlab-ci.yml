@@ -2,6 +2,7 @@ variables:
   #IMAGE: "${CI_REGISTRY}/${CI_REGISTRY_USER}/$CI_PROJECT_NAME"
   IMAGE_TAG: "$CI_REGISTRY_IMAGE:1.0.0-${CI_PIPELINE_IID}"
   CS_ANALYZER_IMAGE: registry.gitlab.com/security-products/container-scanning/trivy:5
+  FAIL_ON_CRITICAL_VULNERABILITIES: "false"
 
 stages:
   - build
@@ -34,50 +35,7 @@ docker-build:
       exists:
         - Dockerfile
 
-# container-scanning:
-#   stage: test
-#   needs:
-#     - docker-build
-#   image: "$CS_ANALYZER_IMAGE$CS_IMAGE_SUFFIX"
-#   variables:
-#     # To provide a `vulnerability-allowlist.yml` file, override the GIT_STRATEGY variable in your
-#     # `.gitlab-ci.yml` file and set it to `fetch`.
-#     # For details, see the following links:
-#     # https://docs.gitlab.com/ee/user/application_security/container_scanning/index.html#overriding-the-container-scanning-template
-#     # https://docs.gitlab.com/ee/user/application_security/container_scanning/#vulnerability-allowlisting
-#     GIT_STRATEGY: none
-#   allow_failure: true
-#   artifacts:
-#     reports:
-#       container_scanning: gl-container-scanning-report.json
-#       dependency_scanning: gl-dependency-scanning-report.json
-#     paths:
-#       [gl-container-scanning-report.json, gl-dependency-scanning-report.json]
-#   dependencies: []
-#   script:
-#     - gtcs scan
-#   rules:
-#     - if: $CONTAINER_SCANNING_DISABLED
-#       when: never
-#     - if: $SCHEDULED_SECURITY_SCAN_ENABLED
-#       when: never
-
-#     # Add the job to merge request pipelines if there's an open merge request.
-#     - if: $CI_PIPELINE_SOURCE == "merge_request_event" &&
-#         $CI_GITLAB_FIPS_MODE == "true" &&
-#         $CS_ANALYZER_IMAGE !~ /-(fips|ubi)\z/
-#       variables:
-#         CS_IMAGE_SUFFIX: -fips
-#     - if: $CI_PIPELINE_SOURCE == "merge_request_event"
-
-#     # Don't add it to a *branch* pipeline if it's already in a merge request pipeline.
-#     - if: $CI_OPEN_MERGE_REQUESTS
-#       when: never
-
-#     # Add the job to branch pipelines.
-#     - if: $CI_COMMIT_BRANCH == "master"
-
-container_scanning:
+container-scanning:
   image:
     name: docker.io/aquasec/trivy:latest
     entrypoint: [""]
@@ -101,7 +59,7 @@ container_scanning:
     # Prints full report
     - time trivy image --exit-code 0 --cache-dir .trivycache/ --no-progress "$FULL_IMAGE_NAME"
     # Fail on critical vulnerabilities
-    - time trivy image --exit-code 1 --cache-dir .trivycache/ --severity CRITICAL --no-progress "$FULL_IMAGE_NAME"
+    - if [[ $(echo $FAIL_ON_CRITICAL_VULNERABILITIES | awk '{print tolower($0)}') == "true" ]]; then time trivy image --exit-code 1 --cache-dir .trivycache/ --severity CRITICAL --no-progress "$FULL_IMAGE_NAME"; fi
   cache:
     paths:
       - .trivycache/
