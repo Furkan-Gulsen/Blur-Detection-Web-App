@@ -12,16 +12,16 @@ stages:
   - test
   - deploy
 
-check-files:
+check_files:
   stage: build
   script:
     - test -s requirements.txt
     - test -s Dockerfile
 
-docker-build:
+docker_build:
   stage: build
   needs:
-    - check-files
+    - check_files
   image: docker:20.10.21
   variables:
     DOCKER_TLS_CERTDIR: "/certs"
@@ -39,7 +39,20 @@ docker-build:
       exists:
         - Dockerfile
 
-container-scanning:
+code_quality:
+  # extends: code_quality
+  variables:
+    REPORT_FORMAT: html
+  artifacts:
+    paths: [gl-code-quality-report.html]
+  rules:
+    - if: $CODE_QUALITY_DISABLED
+      when: never
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event" # Run code quality job in merge request pipelines
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH # Run code quality job in pipelines on the default branch (but not in other branch pipelines)
+    - if: $CI_COMMIT_TAG
+
+container_scanning:
   stage: test
   # Document: https://aquasecurity.github.io/trivy/v0.18.3/integrations/gitlab-ci/
   image:
@@ -78,7 +91,7 @@ container-scanning:
   rules:
     - if: $CONTAINER_SCANNING_DISABLED
       when: never
-
+      
 # deploy:
 #   stage: deploy
 #   script:
