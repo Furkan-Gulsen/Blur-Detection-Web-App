@@ -1,7 +1,11 @@
+include:
+  - template: Code-Quality.gitlab-ci.yml
+
 variables:
   IMAGE_TAG: "$CI_REGISTRY_IMAGE:1.0.0-${CI_PIPELINE_IID}"
   CS_ANALYZER_IMAGE: docker.io/aquasec/trivy:latest
   FAIL_ON_CRITICAL_VULNERABILITIES: "false"
+  # CONTAINER_SCANNING_DISABLED: "true"
 
 stages:
   - build
@@ -36,6 +40,8 @@ docker-build:
         - Dockerfile
 
 container-scanning:
+  stage: test
+  # Document: https://aquasecurity.github.io/trivy/v0.18.3/integrations/gitlab-ci/
   image:
     name: $CS_ANALYZER_IMAGE
     entrypoint: [""]
@@ -69,8 +75,28 @@ container-scanning:
     reports:
       container_scanning: gl-container-scanning-report.json
 
-deploy:
-  stage: deploy
-  script:
-    - echo "Deploying to k8s $CI_COMMIT_BRANCH"
-  # when: manual
+  rules:
+    - if: $CONTAINER_SCANNING_DISABLED
+      when: never
+
+# deploy:
+#   stage: deploy
+#   script:
+#     - echo "Deploying to k8s $CI_COMMIT_BRANCH"
+#   # when: manual
+
+# staging:
+#   stage: deploy
+#   script:
+#     - echo deploying to staging
+#   only:
+#     - main
+#   environment: staging
+
+# production:
+#   stage: deploy
+#   script:
+#     - echo deploying to production
+#   only:
+#     - tags
+#   environment: production
