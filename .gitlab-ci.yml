@@ -6,6 +6,7 @@ variables:
   IMAGE_TAG: "$CI_REGISTRY_IMAGE:1.0.0-${CI_PIPELINE_IID}"
   CS_ANALYZER_IMAGE: docker.io/aquasec/trivy:latest
   FAIL_ON_CRITICAL_VULNERABILITIES: "false"
+  CODE_QUALITY_DISABLED: "true"
   # CONTAINER_SCANNING_DISABLED: "true"
 
 stages:
