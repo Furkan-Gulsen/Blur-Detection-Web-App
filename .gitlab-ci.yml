@@ -16,6 +16,7 @@ stages:
 
 check_files:
   stage: build
+  image: alpine:latest
   script:
     - echo "ENV VARS:" && printenv
     - test -s requirements.txt
@@ -23,8 +24,6 @@ check_files:
 
 docker_build:
   stage: build
-  needs:
-    - check_files
   image: docker:20.10.21
   variables:
     DOCKER_TLS_CERTDIR: "/certs"
@@ -45,6 +44,8 @@ docker_build:
 code_quality:
   stage: test
   # extends: code_quality
+  needs:
+    - check_files
   variables:
     REPORT_FORMAT: html
   artifacts:
@@ -103,6 +104,7 @@ container_scanning:
 deploy:
   stage: deploy
   script:
+    - ls -tlhra
     - echo "Deploying to k8s $CI_COMMIT_BRANCH"
   # when: manual
 
