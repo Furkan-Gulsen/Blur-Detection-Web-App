@@ -1,6 +1,6 @@
 include:
-  # - template: Code-Quality.gitlab-ci.yml
-  - template: Auto-DevOps.gitlab-ci.yml
+  - template: Code-Quality.gitlab-ci.yml
+  # - template: Auto-DevOps.gitlab-ci.yml
 
 variables:
   IMAGE_TAG: "$CI_REGISTRY_IMAGE:1.0.0-${CI_PIPELINE_IID}"
@@ -8,14 +8,15 @@ variables:
   FAIL_ON_CRITICAL_VULNERABILITIES: "false"
   # CONTAINER_SCANNING_DISABLED: "true"
 
-# stages:
-#   - build
-#   - test
-#   - deploy
+stages:
+  - build
+  - test
+  - deploy
 
 check_files:
   stage: build
   script:
+    - echo "ENV VARS:" && printenv
     - test -s requirements.txt
     - test -s Dockerfile
 
@@ -47,6 +48,7 @@ code_quality:
     REPORT_FORMAT: html
   artifacts:
     paths: [gl-code-quality-report.html]
+    expire_in: 60 minutes
   rules:
     - if: $CODE_QUALITY_DISABLED
       when: never
