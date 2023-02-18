@@ -7,7 +7,7 @@ variables:
   CS_ANALYZER_IMAGE: docker.io/aquasec/trivy:latest
   FAIL_ON_CRITICAL_VULNERABILITIES: "false"
   CODE_QUALITY_DISABLED: "true"
-  # CONTAINER_SCANNING_DISABLED: "true"
+  CONTAINER_SCANNING_DISABLED: "true"
 
 stages:
   - build
@@ -101,25 +101,28 @@ container_scanning:
     - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH # Run code quality job in pipelines on the default branch (but not in other branch pipelines)
     - if: $CI_COMMIT_TAG
 
-deploy:
+# deploy:
+#   stage: deploy
+#   script:
+#     - ls -tlhra
+#     - echo "Deploying to k8s $CI_COMMIT_BRANCH"
+#   # when: manual
+
+staging:
   stage: deploy
   script:
-    - ls -tlhra
-    - echo "Deploying to k8s $CI_COMMIT_BRANCH"
-  # when: manual
+    - ls -lRha
+    - echo deploying to staging
+  # only:
+  #   - main
+  environment: staging
 
-# staging:
-#   stage: deploy
-#   script:
-#     - echo deploying to staging
-#   only:
-#     - main
-#   environment: staging
-
-# production:
-#   stage: deploy
-#   script:
-#     - echo deploying to production
-#   only:
-#     - tags
-#   environment: production
+production:
+  stage: deploy
+  script:
+    - ls -lRha
+    - echo deploying to production
+  # only:
+  #   - tags
+  environment: production
+  when: manual
