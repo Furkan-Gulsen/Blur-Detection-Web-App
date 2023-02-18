@@ -121,7 +121,7 @@ production:
   stage: deploy
   script:
     - ls -lRha
-    - echo deploying to production
+    - docker container run -d hello-world
   # only:
   #   - tags
   environment: production
