@@ -3,7 +3,7 @@ include:
   # - template: Auto-DevOps.gitlab-ci.yml
 
 variables:
-  IMAGE_TAG: "$CI_REGISTRY_IMAGE:1.0.0-${CI_PIPELINE_IID}"
+  IMAGE_TAG: "$CI_REGISTRY_IMAGE:1.0.44"
   CS_ANALYZER_IMAGE: docker.io/aquasec/trivy:latest
   FAIL_ON_CRITICAL_VULNERABILITIES: "false"
   CODE_QUALITY_DISABLED: "true"
@@ -12,22 +12,28 @@ variables:
 stages:
   - build
   - test
+  - review
   - deploy
 
 check_files:
+  tags:
+    - local
+    - docker
   stage: build
   image: alpine:latest
   script:
     - echo "ENV VARS:" && printenv
     - test -s requirements.txt
     - test -s Dockerfile
+    - ls -lh
 
 docker_build:
   stage: build
   image: docker:20.10.21
+  needs:
+    - check_files
   variables:
     DOCKER_TLS_CERTDIR: "/certs"
-
   services:
     - docker:20.10.21-dind
   before_script:
@@ -35,7 +41,6 @@ docker_build:
   script:
     - docker build --pull -t $IMAGE_TAG .
     - docker push $IMAGE_TAG
-
   rules:
     - if: $CI_COMMIT_BRANCH
       exists:
@@ -60,6 +65,8 @@ code_quality:
 
 container_scanning:
   stage: test
+  needs:
+    - docker_build
   # Document: https://aquasecurity.github.io/trivy/v0.18.3/integrations/gitlab-ci/
   image:
     name: $CS_ANALYZER_IMAGE
@@ -101,28 +108,58 @@ container_scanning:
     - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH # Run code quality job in pipelines on the default branch (but not in other branch pipelines)
     - if: $CI_COMMIT_TAG
 
-# deploy:
-#   stage: deploy
-#   script:
-#     - ls -tlhra
-#     - echo "Deploying to k8s $CI_COMMIT_BRANCH"
-#   # when: manual
+deploy_review:
+  stage: review
+  image: docker:20.10.21
+  variables:
+    GIT_STRATEGY: none
+    CONTAINER_NAME: "${CI_PROJECT_NAME}-review"
+  before_script:
+    - ls -ltrha
+    - echo $CI_REGISTRY_PASSWORD | docker login -u $CI_REGISTRY_USER --password-stdin $CI_REGISTRY
+    - docker container rm -f $CONTAINER_NAME|| true
+  script:
+    - docker container run -d --name $CONTAINER_NAME -e APP_SECRET_KEY=${APP_SECRET_KEY} -p 127.0.0.1:9000:5000 $IMAGE_TAG
+    - sleep 2
+    - docker container logs $CONTAINER_NAME
+  environment:
+    name: review/$CI_COMMIT_REF_NAME
+    url: https://test.jsplatform.workers.dev/review
+    on_stop: stop_review
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+
+stop_review:
+  stage: review
+  image: docker:20.10.21
+  variables:
+    GIT_STRATEGY: none
+  script:
+    - docker container rm -f ${CI_PROJECT_NAME}-review
+  environment:
+    name: review/$CI_COMMIT_REF_NAME
+    url: https://test.jsplatform.workers.dev/review
+    action: stop
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+      when: manual
 
 staging:
   stage: deploy
   script:
-    - ls -lRha
     - echo deploying to staging
-  # only:
-  #   - main
+    - docker container run -d --name ${CI_PROJECT_NAME}-staging -e APP_SECRET_KEY=${APP_SECRET_KEY} -p 127.0.0.1:9000:5000 $IMAGE_TAG
+    - sleep 2
+    - docker container logs $CI_PROJECT_NAME
   environment: staging
-
+  rules:
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
 production:
   stage: deploy
   script:
     - ls -lRha
-    - docker container run -d hello-world
-  # only:
-  #   - tags
+    - echo deploying to production
   environment: production
   when: manual
+  rules:
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
