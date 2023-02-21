@@ -146,11 +146,13 @@ stop_review:
 
 staging:
   stage: deploy
+  variables:
+    CONTAINER_NAME: "${CI_PROJECT_NAME}-staging"
   script:
     - echo deploying to staging
-    - docker container run -d --name ${CI_PROJECT_NAME}-staging -e APP_SECRET_KEY=${APP_SECRET_KEY} -p 127.0.0.1:9000:5000 $IMAGE_TAG
+    - docker container run -d --name $CONTAINER_NAME -e APP_SECRET_KEY=${APP_SECRET_KEY} -p 127.0.0.1:9000:5000 $IMAGE_TAG
     - sleep 2
-    - docker container logs $CI_PROJECT_NAME
+    - docker container logs $CONTAINER_NAME
   environment: staging
   rules:
     - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
