@@ -171,6 +171,7 @@ production:
     - unset DOCKER_HOST
     - chmod 400 $PROD_SSH_KEY
     - eval "$(ssh-agent -s)"
+    - sleep 100
     - ssh-add $PROD_SSH_KEY
     - echo "JUST CHECKING..." && ssh-add -l
     - echo "StrictHostKeyChecking no" >> $(find /etc -iname ssh_config)
