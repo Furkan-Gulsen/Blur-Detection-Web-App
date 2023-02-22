@@ -10,11 +10,10 @@ variables:
   CONTAINER_SCANNING_DISABLED: "true"
 
 stages:
-  - deploy
   - build
   - test
   - review
-  # - deploy
+  - deploy
 
 check_files:
   tags:
@@ -170,9 +169,6 @@ production:
     - staging
   variables:
     CONTAINER_NAME: "${CI_PROJECT_NAME}"
-  before_script:
-    - echo $CI_REGISTRY_PASSWORD | docker login -u $CI_REGISTRY_USER --password-stdin $CI_REGISTRY
-    - docker container rm -f $CONTAINER_NAME || true
   script:
     - unset DOCKER_HOST
     - cp $PROD_SSH_KEY ~/ssh_key
@@ -180,10 +176,11 @@ production:
     - eval "$(ssh-agent -s)"
     - printenv | grep -i prod
     - ssh-add $PROD_SSH_KEY
-    - echo "JUST CHECKING..." && ssh-add -l
+    - echo "CHECKING IF THE KEY WAS ADDED TO SSH-AGENT:" && ssh-add -l
     - echo "StrictHostKeyChecking no" >> $(find /etc -iname ssh_config)
     - docker context create prod --docker "host=ssh://$PROD_SSH_USER_IP"
     - docker context use prod
+    - echo $CI_REGISTRY_PASSWORD | docker login -u $CI_REGISTRY_USER --password-stdin $CI_REGISTRY
     - docker container rm -f $CONTAINER_NAME || true
     - docker container run -d --name $CONTAINER_NAME -e APP_SECRET_KEY=${APP_SECRET_KEY} -p 80:5000 $IMAGE_TAG
   when: manual
