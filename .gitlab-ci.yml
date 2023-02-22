@@ -176,10 +176,10 @@ production:
   script:
     - unset DOCKER_HOST
     - cp $PROD_SSH_KEY ~/ssh_key
-    - chmod 400 ~/ssh_key
+    - chmod 400 $PROD_SSH_KEY
     - eval "$(ssh-agent -s)"
     - printenv | grep -i prod
-    - ssh-add ~/ssh_key
+    - ssh-add $PROD_SSH_KEY
     - echo "JUST CHECKING..." && ssh-add -l
     - echo "StrictHostKeyChecking no" >> $(find /etc -iname ssh_config)
     - docker context create prod --docker "host=ssh://$PROD_SSH_USER_IP"
