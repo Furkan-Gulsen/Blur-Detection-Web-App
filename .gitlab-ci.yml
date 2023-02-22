@@ -10,10 +10,11 @@ variables:
   CONTAINER_SCANNING_DISABLED: "true"
 
 stages:
-  # - build
-  # - test
-  # - review
   - deploy
+  - build
+  - test
+  - review
+  # - deploy
 
 check_files:
   tags:
