@@ -150,7 +150,7 @@ staging:
   variables:
     CONTAINER_NAME: "${CI_PROJECT_NAME}-staging"
   script:
-    - echo deploying to staging
+    - docker container rm -f --name $CONTAINER_NAME || true
     - docker container run -d --name $CONTAINER_NAME -e APP_SECRET_KEY=${APP_SECRET_KEY} -p 127.0.0.1:9000:5000 $IMAGE_TAG
     - sleep 2
     - docker container logs $CONTAINER_NAME
@@ -172,7 +172,7 @@ production:
     - echo "StrictHostKeyChecking no" >> $(find /etc -iname ssh_config)
     - docker context create prod --docker "host=ssh://$PROD_SSH_USER_IP"
     - docker context use prod
-    - docker container rm $CONTAINER_NAME || true
+    - docker container rm -f $CONTAINER_NAME || true
     - docker container run -d --name $CONTAINER_NAME -e APP_SECRET_KEY=${APP_SECRET_KEY} -p 127.0.0.1:9000:5000 $IMAGE_TAG
   when: manual
   rules:
