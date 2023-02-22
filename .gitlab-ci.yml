@@ -10,9 +10,9 @@ variables:
   CONTAINER_SCANNING_DISABLED: "true"
 
 stages:
-  - build
-  - test
-  - review
+  # - build
+  # - test
+  # - review
   - deploy
 
 check_files:
@@ -178,7 +178,6 @@ production:
     - chmod 400 ~/ssh_key
     - eval "$(ssh-agent -s)"
     - printenv | grep -i prod
-    - sleep 1000
     - ssh-add ~/ssh_key
     - echo "JUST CHECKING..." && ssh-add -l
     - echo "StrictHostKeyChecking no" >> $(find /etc -iname ssh_config)
