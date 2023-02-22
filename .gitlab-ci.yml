@@ -146,6 +146,7 @@ stop_review:
 
 staging:
   stage: deploy
+  environment: staging
   variables:
     CONTAINER_NAME: "${CI_PROJECT_NAME}-staging"
   script:
@@ -153,17 +154,26 @@ staging:
     - docker container run -d --name $CONTAINER_NAME -e APP_SECRET_KEY=${APP_SECRET_KEY} -p 127.0.0.1:9000:5000 $IMAGE_TAG
     - sleep 2
     - docker container logs $CONTAINER_NAME
-  environment: staging
   rules:
     - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
 production:
   stage: deploy
+  environment: production
   needs:
     - staging
+  variables:
+    CONTAINER_NAME: "${CI_PROJECT_NAME}"
   script:
-    - ls -lRha
-    - echo deploying to production
-  environment: production
+    - unset DOCKER_HOST
+    - chmod 400 $PROD_SSH_KEY
+    - eval "$(ssh-agent -s)"
+    - ssh-add $PROD_SSH_KEY
+    - echo "JUST CHECKING..." && ssh-add -l
+    - echo "StrictHostKeyChecking no" >> $(find /etc -iname ssh_config)
+    - docker context create prod --docker "host=ssh://$PROD_SSH_USER_IP"
+    - docker context use prod
+    - docker container rm $CONTAINER_NAME || true
+    - docker container run -d --name $CONTAINER_NAME -e APP_SECRET_KEY=${APP_SECRET_KEY} -p 127.0.0.1:9000:5000 $IMAGE_TAG
   when: manual
   rules:
     - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
