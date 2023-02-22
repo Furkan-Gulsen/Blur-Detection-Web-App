@@ -153,7 +153,7 @@ staging:
     CONTAINER_NAME: "${CI_PROJECT_NAME}-staging"
   script:
     - docker container rm -f $CONTAINER_NAME || true
-    - docker container run -d --name $CONTAINER_NAME -e APP_SECRET_KEY=${APP_SECRET_KEY} -p 127.0.0.1:80:5000 $IMAGE_TAG
+    - docker container run -d --name $CONTAINER_NAME -e APP_SECRET_KEY=${APP_SECRET_KEY} -p 80:5000 $IMAGE_TAG
     - sleep 2
     - docker container logs $CONTAINER_NAME
   rules:
@@ -178,7 +178,7 @@ production:
     - docker context create prod --docker "host=ssh://$PROD_SSH_USER_IP"
     - docker context use prod
     - docker container rm -f $CONTAINER_NAME || true
-    - docker container run -d --name $CONTAINER_NAME -e APP_SECRET_KEY=${APP_SECRET_KEY} -p 127.0.0.1:80:5000 $IMAGE_TAG
+    - docker container run -d --name $CONTAINER_NAME -e APP_SECRET_KEY=${APP_SECRET_KEY} -p 80:5000 $IMAGE_TAG
   when: manual
   rules:
     - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
