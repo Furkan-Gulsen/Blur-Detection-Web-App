@@ -15,6 +15,15 @@ stages:
   - review
   - deploy
 
+test_artifacts:
+  stage: build
+  script:
+    - echo $IMAGE_TAG > atrifact.env
+  artifacts:
+    paths:
+      - "atrifact.env"
+    expire_in: 60 minutes
+
 check_files:
   tags:
     - local
@@ -22,10 +31,10 @@ check_files:
   stage: build
   image: alpine:latest
   script:
+    - ls -ltrh # to delete
     - echo "ENV VARS:" && printenv
     - test -s requirements.txt
     - test -s Dockerfile
-    - ls -lh
 
 docker_build:
   stage: build
@@ -48,7 +57,6 @@ docker_build:
 
 code_quality:
   stage: test
-  # extends: code_quality
   needs:
     - check_files
   variables:
@@ -151,6 +159,7 @@ staging:
   variables:
     CONTAINER_NAME: "${CI_PROJECT_NAME}-staging"
   before_script:
+    - ls -ltrh # to delete
     - echo $CI_REGISTRY_PASSWORD | docker login -u $CI_REGISTRY_USER --password-stdin $CI_REGISTRY
     - docker container rm -f $CONTAINER_NAME|| true
   script:
@@ -170,13 +179,12 @@ production:
   variables:
     CONTAINER_NAME: "${CI_PROJECT_NAME}"
   script:
+    - ls -ltrh # to delete
     - unset DOCKER_HOST
-    - cp $PROD_SSH_KEY ~/ssh_key
     - chmod 400 $PROD_SSH_KEY
     - eval "$(ssh-agent -s)"
-    - printenv | grep -i prod
     - ssh-add $PROD_SSH_KEY
-    - echo "CHECKING IF THE KEY WAS ADDED TO SSH-AGENT:" && ssh-add -l
+    - echo "CHECKING IF THE KEY WAS ADDED TO SSH-AGENT:" && ssh-add -l # to delete
     - echo "StrictHostKeyChecking no" >> $(find /etc -iname ssh_config)
     - docker context create prod --docker "host=ssh://$PROD_SSH_USER_IP"
     - docker context use prod
