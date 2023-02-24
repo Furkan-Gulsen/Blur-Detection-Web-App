@@ -163,7 +163,7 @@ staging:
     - echo $CI_REGISTRY_PASSWORD | docker login -u $CI_REGISTRY_USER --password-stdin $CI_REGISTRY
     - docker container rm -f $CONTAINER_NAME|| true
   script:
-    - docker container run -d --name $CONTAINER_NAME -e APP_SECRET_KEY=${APP_SECRET_KEY} -p 80:5000 $IMAGE_TAG
+    - docker container run -d --name $CONTAINER_NAME -e APP_SECRET_KEY=${APP_SECRET_KEY} -p 9002:5000 $IMAGE_TAG
     - sleep 2
     - docker container logs $CONTAINER_NAME
   rules:
@@ -173,7 +173,7 @@ production:
   stage: deploy
   environment:
     name: production
-    url: https://thisisthis.info
+    url: https://prod.thisisthis.info
   needs:
     - staging
   variables:
@@ -190,7 +190,7 @@ production:
     - docker context use prod
     - echo $CI_REGISTRY_PASSWORD | docker login -u $CI_REGISTRY_USER --password-stdin $CI_REGISTRY
     - docker container rm -f $CONTAINER_NAME || true
-    - docker container run -d --name $CONTAINER_NAME -e APP_SECRET_KEY=${APP_SECRET_KEY} -p 80:5000 $IMAGE_TAG
+    - docker container run -d --name $CONTAINER_NAME -e APP_SECRET_KEY=${APP_SECRET_KEY} -p 9001:5000 $IMAGE_TAG
   when: manual
   rules:
     - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
