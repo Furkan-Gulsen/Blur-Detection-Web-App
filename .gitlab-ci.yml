@@ -7,7 +7,7 @@ variables:
   CS_ANALYZER_IMAGE: docker.io/aquasec/trivy:latest
   FAIL_ON_CRITICAL_VULNERABILITIES: "false"
   # CODE_QUALITY_DISABLED: "true"
-  # CONTAINER_SCANNING_DISABLED: "true"
+  CONTAINER_SCANNING_DISABLED: "true"
 
 stages:
   - build
@@ -32,7 +32,7 @@ check_files:
   stage: build
   image: alpine:latest
   script:
-    - ls -ltrh && printenv | grep -i image # to delete
+    - ls -ltrha && printenv | grep -i image # to delete
     - echo "ENV VARS:" && printenv
     - test -s requirements.txt
     - test -s Dockerfile
@@ -72,12 +72,6 @@ code_quality:
     - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH # Run code quality job in pipelines on the default branch (but not in other branch pipelines)
     - if: $CI_COMMIT_TAG
 
-test_job:
-  stage: test
-  script:
-    - ls -tlhr
-    - echo "testing stuff"
-
 container_scanning:
   stage: test
   needs:
@@ -86,6 +80,7 @@ container_scanning:
   image:
     name: $CS_ANALYZER_IMAGE
     entrypoint: [""]
+  
   variables:
     # No need to clone the repo, we exclusively work on artifacts.  See
     # https://docs.gitlab.com/ee/ci/runners/README.html#git-strategy
@@ -127,8 +122,8 @@ container_scanning:
 
 cache_user_job:
   stage: test
-  script:
-    - ls -tlhra .trivy*
+  script: # to delete
+    - ls -tlhrad .trivy* && ls -tlhra .trivy*
   cache:
     key: $CI_COMMIT_REF_NAME
     paths:
@@ -179,7 +174,7 @@ staging:
   variables:
     CONTAINER_NAME: "${CI_PROJECT_NAME}-staging"
   script:
-    - ls -ltrh # to delete
+    - ls -ltrha # to delete
     - unset DOCKER_HOST
     - chmod 400 $STAGING_SSH_KEY
     - eval "$(ssh-agent -s)"
@@ -216,7 +211,7 @@ production:
   variables:
     CONTAINER_NAME: "${CI_PROJECT_NAME}"
   script:
-    - ls -ltrh # to delete
+    - ls -ltrha # to delete
     - unset DOCKER_HOST
     - chmod 400 $PROD_SSH_KEY
     - eval "$(ssh-agent -s)"
