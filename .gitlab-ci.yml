@@ -3,7 +3,7 @@ include:
   # - template: Auto-DevOps.gitlab-ci.yml
 
 variables:
-  IMAGE_TAG: "$CI_REGISTRY_IMAGE:1.0.44"
+  IMAGE_TAG: "$CI_REGISTRY_IMAGE:1.0.$CI_PIPELINE_ID"
   CS_ANALYZER_IMAGE: docker.io/aquasec/trivy:latest
   FAIL_ON_CRITICAL_VULNERABILITIES: "false"
   CODE_QUALITY_DISABLED: "true"
