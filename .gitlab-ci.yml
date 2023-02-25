@@ -15,23 +15,24 @@ stages:
   - review
   - deploy
 
-test_artifacts:
+test_artifacts: # to delete
   stage: build
   script:
-    - echo $IMAGE_TAG > atrifact.env
+    - echo "IMAGE_TAG=$IMAGE_TAG" > builder.env
   artifacts:
     paths:
-      - "atrifact.env"
-    expire_in: 60 minutes
+      - "builder.env"
 
 check_files:
   tags:
     - local
     - docker
+  needs: # to delete
+    - test_artifacts
   stage: build
   image: alpine:latest
   script:
-    - ls -ltrh # to delete
+    - ls -ltrh && printenv | grep -i image # to delete
     - echo "ENV VARS:" && printenv
     - test -s requirements.txt
     - test -s Dockerfile
