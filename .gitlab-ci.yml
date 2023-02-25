@@ -158,14 +158,19 @@ staging:
     url: http://staging.thisisthis.info
   variables:
     CONTAINER_NAME: "${CI_PROJECT_NAME}-staging"
-  before_script:
-    - ls -ltrh # to delete
-    - echo $CI_REGISTRY_PASSWORD | docker login -u $CI_REGISTRY_USER --password-stdin $CI_REGISTRY
-    - docker container rm -f $CONTAINER_NAME|| true
   script:
-    - docker container run -d --name $CONTAINER_NAME -e APP_SECRET_KEY=${APP_SECRET_KEY} -p 9002:5000 $IMAGE_TAG
-    - sleep 2
-    - docker container logs $CONTAINER_NAME
+    - ls -ltrh # to delete
+    - unset DOCKER_HOST
+    - chmod 400 $STAGING_SSH_KEY
+    - eval "$(ssh-agent -s)"
+    - ssh-add $STAGING_SSH_KEY
+    - echo "CHECKING IF THE KEY WAS ADDED TO SSH-AGENT:" && ssh-add -l # to delete
+    - echo "StrictHostKeyChecking no" >> $(find /etc -iname ssh_config)
+    - docker context create remote --docker "host=ssh://$STAGING_SSH_USER_IP"
+    - docker context use remote
+    - echo $CI_REGISTRY_PASSWORD | docker login -u $CI_REGISTRY_USER --password-stdin $CI_REGISTRY
+    - docker container rm -f $CONTAINER_NAME || true
+    - docker container run -d --name $CONTAINER_NAME -e APP_SECRET_KEY=${APP_SECRET_KEY} -p 9001:5000 $IMAGE_TAG
   rules:
     - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
 
