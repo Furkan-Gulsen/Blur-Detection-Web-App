@@ -1,17 +1,218 @@
-# The Docker image that will be used to build your app
-image: alpine:latest
-# Functions that should be executed before the build script is run
-before_script:
-  - ls
+include:
+  - template: Code-Quality.gitlab-ci.yml
+  # - template: Auto-DevOps.gitlab-ci.yml
+
+variables:
+  IMAGE_TAG: "$CI_REGISTRY_IMAGE:1.0.44"
+  CS_ANALYZER_IMAGE: docker.io/aquasec/trivy:latest
+  FAIL_ON_CRITICAL_VULNERABILITIES: "false"
+  CODE_QUALITY_DISABLED: "true"
+  CONTAINER_SCANNING_DISABLED: "true"
+
+stages:
+  - build
+  - test
+  - review
+  - deploy
+
+test_artifacts:
+  stage: build
+  script:
+    - echo $IMAGE_TAG > atrifact.env
+  artifacts:
+    paths:
+      - "atrifact.env"
+    expire_in: 60 minutes
+
+check_files:
+  tags:
+    - local
+    - docker
+  stage: build
+  image: alpine:latest
+  script:
+    - ls -ltrh # to delete
+    - echo "ENV VARS:" && printenv
+    - test -s requirements.txt
+    - test -s Dockerfile
+
+docker_build:
+  stage: build
+  image: docker:20.10.21
+  needs:
+    - check_files
+  variables:
+    DOCKER_TLS_CERTDIR: "/certs"
+  services:
+    - docker:20.10.21-dind
+  before_script:
+    - echo $CI_REGISTRY_PASSWORD | docker login -u $CI_REGISTRY_USER --password-stdin $CI_REGISTRY
+  script:
+    - docker build --pull -t $IMAGE_TAG .
+    - docker push $IMAGE_TAG
+  rules:
+    - if: $CI_COMMIT_BRANCH
+      exists:
+        - Dockerfile
+
+code_quality:
+  stage: test
+  needs:
+    - check_files
+  variables:
+    REPORT_FORMAT: html
+  artifacts:
+    paths: [gl-code-quality-report.html]
+    expire_in: 60 minutes
+  rules:
+    - if: $CODE_QUALITY_DISABLED
+      when: never
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event" # Run code quality job in merge request pipelines
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH # Run code quality job in pipelines on the default branch (but not in other branch pipelines)
+    - if: $CI_COMMIT_TAG
+
+test_job:
+  stage: test
+  script:
+    - ls -tlhr
+    - echo "testing stuff"
+
+container_scanning:
+  stage: test
+  needs:
+    - docker_build
+  # Document: https://aquasecurity.github.io/trivy/v0.18.3/integrations/gitlab-ci/
+  image:
+    name: $CS_ANALYZER_IMAGE
+    entrypoint: [""]
+  variables:
+    # No need to clone the repo, we exclusively work on artifacts.  See
+    # https://docs.gitlab.com/ee/ci/runners/README.html#git-strategy
+    GIT_STRATEGY: none
+    TRIVY_USERNAME: "$CI_REGISTRY_USER"
+    TRIVY_PASSWORD: "$CI_REGISTRY_PASSWORD"
+    TRIVY_AUTH_URL: "$CI_REGISTRY"
+    FULL_IMAGE_NAME: "$IMAGE_TAG"
+  script:
+    - trivy --version
+    # cache cleanup is needed when scanning images with the same tags, it does not remove the database
+    - time trivy image --clear-cache
+    # update vulnerabilities db
+    - time trivy image --download-db-only --no-progress --cache-dir .trivycache/
+    # Builds report and puts it in the default workdir $CI_PROJECT_DIR, so `artifacts:` can take it from there
+    - time trivy image --exit-code 0 --cache-dir .trivycache/ --no-progress --format template --template "@/contrib/gitlab.tpl"
+      --output "$CI_PROJECT_DIR/gl-container-scanning-report.json" "$FULL_IMAGE_NAME"
+    # Prints full report
+    - time trivy image --exit-code 0 --cache-dir .trivycache/ --no-progress "$FULL_IMAGE_NAME"
+    # Fail on critical vulnerabilities
+    - if [[ $(echo $FAIL_ON_CRITICAL_VULNERABILITIES | awk '{print tolower($0)}') == "true" ]]; then time trivy image --exit-code 1 --cache-dir .trivycache/ --severity CRITICAL --no-progress "$FULL_IMAGE_NAME"; fi
+  cache:
+    paths:
+      - .trivycache/
+  # Enables https://docs.gitlab.com/ee/user/application_security/container_scanning/ (Container Scanning report is available on GitLab EE Ultimate or GitLab.com Gold)
+  artifacts:
+    when: always
+    reports:
+      container_scanning: gl-container-scanning-report.json
+
+  rules:
+    - if: $CONTAINER_SCANNING_DISABLED
+      when: never
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event" # Run code quality job in merge request pipelines
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH # Run code quality job in pipelines on the default branch (but not in other branch pipelines)
+    - if: $CI_COMMIT_TAG
+
+deploy_review:
+  stage: review
+  image: docker:20.10.21
+  variables:
+    GIT_STRATEGY: none
+    CONTAINER_NAME: "${CI_PROJECT_NAME}-review"
+  before_script:
+    - echo $CI_REGISTRY_PASSWORD | docker login -u $CI_REGISTRY_USER --password-stdin $CI_REGISTRY
+    - docker container rm -f $CONTAINER_NAME|| true
+  script:
+    - docker container run -d --name $CONTAINER_NAME -e APP_SECRET_KEY=${APP_SECRET_KEY} -p 127.0.0.1:9000:5000 $IMAGE_TAG
+    - sleep 2
+    - docker container logs $CONTAINER_NAME
+  environment:
+    name: review/$CI_COMMIT_REF_NAME
+    url: https://test.jsplatform.workers.dev/review
+    on_stop: stop_review
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+
+stop_review:
+  stage: review
+  image: docker:20.10.21
+  variables:
+    GIT_STRATEGY: none
+  script:
+    - docker container rm -f ${CI_PROJECT_NAME}-review
+  environment:
+    name: review/$CI_COMMIT_REF_NAME
+    url: https://test.jsplatform.workers.dev/review
+    action: stop
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+      when: manual
+
+staging:
+  stage: deploy
+  environment:
+    name: staging
+    url: https://staging.thisisthis.info
+  variables:
+    CONTAINER_NAME: "${CI_PROJECT_NAME}-staging"
+  script:
+    - ls -ltrh # to delete
+    - unset DOCKER_HOST
+    - chmod 400 $STAGING_SSH_KEY
+    - eval "$(ssh-agent -s)"
+    - ssh-add $STAGING_SSH_KEY
+    - echo "CHECKING IF THE KEY WAS ADDED TO SSH-AGENT:" && ssh-add -l # to delete
+    - echo "StrictHostKeyChecking no" >> $(find /etc -iname ssh_config)
+    - docker context create remote --docker "host=ssh://$STAGING_SSH_USER_IP"
+    - docker context use remote
+    - echo $CI_REGISTRY_PASSWORD | docker login -u $CI_REGISTRY_USER --password-stdin $CI_REGISTRY
+    - docker container rm -f $CONTAINER_NAME || true
+    - docker container run -d --name $CONTAINER_NAME -e APP_SECRET_KEY=${APP_SECRET_KEY} -p 9002:5000 $IMAGE_TAG
+  rules:
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+
 pages:
+  stage: deploy
   script:
     - mkdir public
     - echo "HElloooooo" > public/index.html
   artifacts:
     paths:
-      # The folder that contains the files to be exposed at the Page URL
       - public
   rules:
-    # This ensures that only pushes to the default branch will trigger
-    # a pages deploy
     - if: $CI_COMMIT_REF_NAME == $CI_DEFAULT_BRANCH
+
+production:
+  stage: deploy
+  environment:
+    name: production
+    url: https://prod.thisisthis.info
+  needs:
+    - staging
+  variables:
+    CONTAINER_NAME: "${CI_PROJECT_NAME}"
+  script:
+    - ls -ltrh # to delete
+    - unset DOCKER_HOST
+    - chmod 400 $PROD_SSH_KEY
+    - eval "$(ssh-agent -s)"
+    - ssh-add $PROD_SSH_KEY
+    - echo "CHECKING IF THE KEY WAS ADDED TO SSH-AGENT:" && ssh-add -l # to delete
+    - echo "StrictHostKeyChecking no" >> $(find /etc -iname ssh_config)
+    - docker context create prod --docker "host=ssh://$PROD_SSH_USER_IP"
+    - docker context use prod
+    - echo $CI_REGISTRY_PASSWORD | docker login -u $CI_REGISTRY_USER --password-stdin $CI_REGISTRY
+    - docker container rm -f $CONTAINER_NAME || true
+    - docker container run -d --name $CONTAINER_NAME -e APP_SECRET_KEY=${APP_SECRET_KEY} -p 9001:5000 $IMAGE_TAG
+  when: manual
+  rules:
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
