@@ -6,8 +6,8 @@ variables:
   IMAGE_TAG: "$CI_REGISTRY_IMAGE:1.0.$CI_PIPELINE_IID"
   CS_ANALYZER_IMAGE: docker.io/aquasec/trivy:latest
   FAIL_ON_CRITICAL_VULNERABILITIES: "false"
-  CODE_QUALITY_DISABLED: "true"
-  CONTAINER_SCANNING_DISABLED: "true"
+  # CODE_QUALITY_DISABLED: "true"
+  # CONTAINER_SCANNING_DISABLED: "true"
 
 stages:
   - build
@@ -108,8 +108,10 @@ container_scanning:
     # Fail on critical vulnerabilities
     - if [[ $(echo $FAIL_ON_CRITICAL_VULNERABILITIES | awk '{print tolower($0)}') == "true" ]]; then time trivy image --exit-code 1 --cache-dir .trivycache/ --severity CRITICAL --no-progress "$FULL_IMAGE_NAME"; fi
   cache:
+    key: $CI_COMMIT_REF_NAME
     paths:
       - .trivycache/
+    policy: pull-push
   # Enables https://docs.gitlab.com/ee/user/application_security/container_scanning/ (Container Scanning report is available on GitLab EE Ultimate or GitLab.com Gold)
   artifacts:
     when: always
@@ -122,6 +124,16 @@ container_scanning:
     - if: $CI_PIPELINE_SOURCE == "merge_request_event" # Run code quality job in merge request pipelines
     - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH # Run code quality job in pipelines on the default branch (but not in other branch pipelines)
     - if: $CI_COMMIT_TAG
+
+cache_user_job:
+  stage: test
+  script:
+    - ls -tlhra .trivy*
+  cache:
+    key: $CI_COMMIT_REF_NAME
+    paths:
+      - .trivycache/
+    policy: pull-push
 
 deploy_review:
   stage: review
@@ -159,6 +171,7 @@ stop_review:
       when: manual
 
 staging:
+  image: docker:20.10.21
   stage: deploy
   environment:
     name: staging
@@ -193,6 +206,7 @@ pages:
     - if: $CI_COMMIT_REF_NAME == $CI_DEFAULT_BRANCH
 
 production:
+  image: docker:20.10.21
   stage: deploy
   environment:
     name: production
