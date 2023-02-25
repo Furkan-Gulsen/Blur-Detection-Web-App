@@ -133,7 +133,7 @@ cache_user_job:
     key: $CI_COMMIT_REF_NAME
     paths:
       - .trivycache/
-    policy: pull-push
+    policy: pull # Only use the cache and don't save it
 
 deploy_review:
   stage: review
