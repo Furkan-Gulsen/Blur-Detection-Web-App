@@ -161,7 +161,7 @@ staging:
   stage: deploy
   environment:
     name: staging
-    url: http://staging.thisisthis.info
+    url: https://staging.thisisthis.info
   variables:
     CONTAINER_NAME: "${CI_PROJECT_NAME}-staging"
   script:
