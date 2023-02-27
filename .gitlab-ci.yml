@@ -208,7 +208,8 @@ staging:
     SSH_USER_IP: $STAGING_SSH_USER_IP
     APP_PORT: 9002
 
-test_deploy:
+functional test:
+  image: curlimages/curl
   stage: deploy_staging
   script:
     - curl -v --max-time 10 $STAGING_ENV_URL
