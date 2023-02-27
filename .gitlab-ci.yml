@@ -1,5 +1,6 @@
 include:
   - template: Code-Quality.gitlab-ci.yml
+  - template: SAST.gitlab-ci.yml
   # - template: Auto-DevOps.gitlab-ci.yml
 
 variables:
@@ -8,12 +9,16 @@ variables:
   FAIL_ON_CRITICAL_VULNERABILITIES: "false"
   CODE_QUALITY_DISABLED: "true"
   # CONTAINER_SCANNING_DISABLED: "true"
+  PROD_ENV_URL: "https://prod.thisisthis.info"
+  STAGING_ENV_URL: https://staging.thisisthis.info
 
 stages:
   - build
   - test
   - review
-  - deploy
+  - deploy_staging
+  - publish_pages
+  - deploy_production
 
 test_artifacts: # to delete
   stage: build
@@ -165,32 +170,52 @@ stop_review:
     - if: $CI_PIPELINE_SOURCE == "merge_request_event"
       when: manual
 
-staging:
+.deploy:
   image: docker:20.10.21
-  stage: deploy
-  environment:
-    name: staging
-    url: https://staging.thisisthis.info
   variables:
-    CONTAINER_NAME: "${CI_PROJECT_NAME}-staging"
+    DEPLOY_ENV: ""
+    CONTAINER_NAME: "${CI_PROJECT_NAME}-${DEPLOY_ENV}"
+    ENV_URL: ""
+    SSH_KEY_FILE: ""
+    SSH_USER_IP: ""
+    APP_PORT: ""
+  environment:
+    name: $DEPLOY_ENV
+    url: $ENV_URL
   script:
     - ls -ltrha # to delete
     - unset DOCKER_HOST
-    - chmod 400 $STAGING_SSH_KEY
+    - chmod 400 $SSH_KEY_FILE
     - eval "$(ssh-agent -s)"
-    - ssh-add $STAGING_SSH_KEY
+    - ssh-add $SSH_KEY_FILE
     - echo "CHECKING IF THE KEY WAS ADDED TO SSH-AGENT:" && ssh-add -l # to delete
     - echo "StrictHostKeyChecking no" >> $(find /etc -iname ssh_config)
-    - docker context create remote --docker "host=ssh://$STAGING_SSH_USER_IP"
-    - docker context use remote
+    - docker context create prod --docker "host=ssh://$SSH_USER_IP"
+    - docker context use prod
     - echo $CI_REGISTRY_PASSWORD | docker login -u $CI_REGISTRY_USER --password-stdin $CI_REGISTRY
     - docker container rm -f $CONTAINER_NAME || true
-    - docker container run -d --name $CONTAINER_NAME -e APP_SECRET_KEY=${APP_SECRET_KEY} -p 9002:5000 $IMAGE_TAG
+    - docker container run -d --name $CONTAINER_NAME -e APP_SECRET_KEY=${APP_SECRET_KEY} -p $APP_PORT:5000 $IMAGE_TAG
   rules:
     - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
 
+staging:
+  extends: .deploy
+  stage: deploy_staging
+  variables:
+    DEPLOY_ENV: "staging"
+    CONTAINER_NAME: "${CI_PROJECT_NAME}-${DEPLOY_ENV}"
+    ENV_URL: $STAGING_ENV_URL
+    SSH_KEY_FILE: $STAGING_SSH_KEY
+    SSH_USER_IP: $STAGING_SSH_USER_IP
+    APP_PORT: 9002
+
+test_deploy:
+  stage: deploy_staging
+  script:
+    - curl -v --max-time 10 $STAGING_ENV_URL
+
 pages:
-  stage: deploy
+  stage: publish_pages
   script:
     - mkdir public
     - echo "HElloooooo" > public/index.html
@@ -201,28 +226,13 @@ pages:
     - if: $CI_COMMIT_REF_NAME == $CI_DEFAULT_BRANCH
 
 production:
-  image: docker:20.10.21
-  stage: deploy
-  environment:
-    name: production
-    url: https://prod.thisisthis.info
-  needs:
-    - staging
+  extends: .deploy
+  stage: deploy_production
   variables:
-    CONTAINER_NAME: "${CI_PROJECT_NAME}"
-  script:
-    - ls -ltrha # to delete
-    - unset DOCKER_HOST
-    - chmod 400 $PROD_SSH_KEY
-    - eval "$(ssh-agent -s)"
-    - ssh-add $PROD_SSH_KEY
-    - echo "CHECKING IF THE KEY WAS ADDED TO SSH-AGENT:" && ssh-add -l # to delete
-    - echo "StrictHostKeyChecking no" >> $(find /etc -iname ssh_config)
-    - docker context create prod --docker "host=ssh://$PROD_SSH_USER_IP"
-    - docker context use prod
-    - echo $CI_REGISTRY_PASSWORD | docker login -u $CI_REGISTRY_USER --password-stdin $CI_REGISTRY
-    - docker container rm -f $CONTAINER_NAME || true
-    - docker container run -d --name $CONTAINER_NAME -e APP_SECRET_KEY=${APP_SECRET_KEY} -p 9001:5000 $IMAGE_TAG
+    DEPLOY_ENV: "production"
+    CONTAINER_NAME: "${CI_PROJECT_NAME}-${DEPLOY_ENV}"
+    ENV_URL: "$PROD_ENV_URL"
+    SSH_KEY_FILE: $PROD_SSH_KEY
+    SSH_USER_IP: $PROD_SSH_USER_IP
+    APP_PORT: 9001
   when: manual
-  rules:
-    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
